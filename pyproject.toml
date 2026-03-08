@@ -1,0 +1,88 @@
+[project]
+name = "ych"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "h5py",
+    "torch",
+    "boto3",
+    "pylance>=2.0.0",
+    "lancedb",
+    "torchvision",
+    "marimo",
+    "pandas",
+    "pubmed-parser",
+    "matplotlib",
+    "scipy",
+    "rdkit",
+    "numba",
+    "transformers",
+    "sentencepiece",
+    "protobuf",
+    "biopython",
+    "datasets",
+    "openpyxl",
+    "scikit-learn",
+    "polars",
+    "anthropic",
+    "gcsfs",
+    "opencv-python",
+    "anndata",
+    "s3fs",
+    "scanpy",
+    "bionty",
+    "GEOparse",
+    "tifffile>=2026.3.3",
+    "imagecodecs>=2026.1.14",
+    "pubchempy",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "pre-commit",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["notebooks/"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
