@@ -1,3 +1,10 @@
+---
+name: quality-rubric
+description: Standardized 6-dimension scoring rubric (experimental design, data quality, perturbation characterization, reproducibility, biological relevance, analytical methods) for evaluating perturbation biology papers. Use when assessing paper quality, scoring datasets, or when an assessment agent needs evaluation criteria.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Quality Rubric
 
 ## Purpose

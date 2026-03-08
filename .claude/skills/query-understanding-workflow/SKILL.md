@@ -1,3 +1,10 @@
+---
+name: query-understanding-workflow
+description: Parses natural language perturbation biology questions into structured query objects. Use when a user asks about gene knockouts, drug effects, CRISPR screens, perturbation experiments, or says "analyze this perturbation question" or "search for perturb-seq data". This is the pipeline entry point.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Query Understanding Workflow
 
 ## Purpose

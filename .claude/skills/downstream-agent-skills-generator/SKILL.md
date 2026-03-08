@@ -1,3 +1,10 @@
+---
+name: downstream-agent-skills-generator
+description: Auto-generates a SKILL.md file for a processed dataset so future Claude Code sessions can discover and analyze it. Use after preprocessing succeeds and validation passes, or when a user says "create a skill for this dataset", "make this dataset available in future sessions", or "register this processed data".
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Downstream Agent Skills Generator
 
 ## Purpose

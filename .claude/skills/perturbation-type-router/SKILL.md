@@ -1,3 +1,10 @@
+---
+name: perturbation-type-router
+description: Routes perturbation datasets to the correct analysis branch (chemical, CRISPR, RNAi, or combinatorial) with route-specific preprocessing parameters. Use after paper assessment to determine analysis pathway, or when a user asks "how should I analyze this perturbation data" or "what preprocessing parameters for a CRISPR/drug screen".
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Perturbation Type Router
 
 ## Purpose

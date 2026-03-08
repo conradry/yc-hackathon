@@ -1,3 +1,10 @@
+---
+name: dataset-preprocessing-workflow
+description: End-to-end preprocessing pipeline for perturbation biology single-cell datasets (QC, normalize, HVG, PCA, UMAP, cluster, DE). Use when a user says "preprocess this dataset", "run the analysis pipeline", "process this h5ad file", or after perturbation-type-router provides preprocessing parameters.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Dataset Preprocessing Workflow
 
 ## Purpose

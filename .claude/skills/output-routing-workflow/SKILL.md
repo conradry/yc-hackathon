@@ -1,3 +1,10 @@
+---
+name: output-routing-workflow
+description: Routes pipeline output to the appropriate destination — save processed dataset with auto-generated skill, export as API JSON, or continue with follow-up analysis. Use as the final pipeline step after preprocessing and validation, or when a user says "save results", "export dataset", or "what should I do next with this data".
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Output Routing Workflow
 
 ## Purpose

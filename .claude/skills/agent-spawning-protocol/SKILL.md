@@ -1,3 +1,10 @@
+---
+name: agent-spawning-protocol
+description: Defines how to spawn, manage, and collect results from subagents in the perturbation biology pipeline. Use when orchestrating parallel agent execution, spawning assessment agents, or when a workflow requires multi-agent coordination with structured context envelopes and result collection.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Agent Spawning Protocol
 
 ## Purpose

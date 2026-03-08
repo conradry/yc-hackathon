@@ -1,3 +1,10 @@
+---
+name: paper-search-workflow
+description: Searches for perturbation biology papers and datasets across Semantic Scholar, EuropePMC, and LanceDB. Use when a user asks to "find papers", "search for datasets", "look up perturb-seq studies", or needs to retrieve publications about CRISPR screens, drug perturbations, or single-cell perturbation experiments.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Paper Search Workflow
 
 ## Purpose
@@ -44,30 +51,62 @@ curl -s "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=<encoded_
 #### Source C: LanceDB (via `lancedb-query` skill)
 Query the curated LanceDB database for publications and datasets. This is the highest-signal source — data has been ingested, genes resolved via `gene-resolver`, and molecules standardized via `molecule-resolver`.
 
-**Publication search** (full-text on `section_text`):
+> **No FTS on S3** — Never use `query_type="fts"`. Use pandas `str.contains()` or scalar `.where()` filters.
+
+**Connection:**
 ```python
-db = lancedb.connect("<db_path>")
-pubs = db.open_table("publications")
-results = pubs.search("<query_terms>", query_type="fts").limit(20).to_pandas()
+import sys; sys.path.insert(0, "scripts")
+from db_connect import get_db, search_text
+
+db = get_db()
 ```
 
-**Dataset search** (metadata filters + FTS on `dataset_description`):
+**Publication search** (pandas text filter on `section_text`):
+```python
+# search_text() calls .to_pandas() then str.contains() — safe for small tables
+hits = search_text(db, "publications", "section_text", "<query_terms>")
+
+# Or manual pandas for more complex filters:
+pubs_df = db.open_table("publications").to_pandas()
+results = pubs_df[
+    pubs_df["section_text"].str.contains("<query_terms>", case=False, na=False)
+]
+```
+
+**Dataset search** (scalar `.where()` + pandas text filter):
 ```python
 datasets = db.open_table("datasets")
-# By accession
+# By accession (scalar filter — works on S3)
 ds = datasets.search().where("accession_id = 'GSE12345'").to_pandas()
-# By text
-ds = datasets.search("<query_terms>", query_type="fts").limit(20).to_pandas()
+
+# By text on dataset_description (small table — pandas OK)
+ds_df = datasets.to_pandas()
+hits = ds_df[ds_df["dataset_description"].str.contains("<query_terms>", case=False, na=False)]
 ```
 
-**Perturbation-aware search** (gene expression table):
+**Perturbation-aware search** (gene expression — LARGE table, always filter first):
 ```python
 gene_expr = db.open_table("gene_expression")
-# Find cells with specific genetic perturbation
-cells = gene_expr.search("GENE_ID:<gene_index> METHOD:CRISPR-cas9", query_type="fts").limit(100).to_pandas()
+# Use scalar .where() with LIKE — never call .to_pandas() without filter
+cells = gene_expr.search().where(
+    "perturbation_search_string LIKE '%GENE_ID:<gene_index>%'"
+).limit(100).to_pandas()
 ```
 
-Cross-reference publications → datasets via `pmid`/`doi` join. Prioritize LanceDB results over API results when available (curated > crawled).
+**Cross-reference publications → datasets** (join on `pmid`):
+```python
+pubs_df = db.open_table("publications").to_pandas()
+ds_df   = db.open_table("datasets").to_pandas()
+
+# Find papers matching query, then get their datasets
+paper_pmids = pubs_df[
+    pubs_df["title"].str.contains("<query>", case=False, na=False)
+]["pmid"].unique()
+
+related_datasets = ds_df[ds_df["pmid"].isin(paper_pmids)]
+```
+
+Prioritize LanceDB results over API results when available (curated > crawled).
 
 See `lancedb-query` SKILL.md for full schema and query patterns.
 
