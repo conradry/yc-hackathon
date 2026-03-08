@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import { isToolUIPart } from "ai";
 import { WorkflowTerminal } from "@/components/workflow/WorkflowTerminal";
 
 interface ChatMessageProps {
@@ -10,7 +11,7 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const hasTools = message.parts.some((p) => p.type === "tool-invocation");
+  const hasTools = message.parts.some((p) => isToolUIPart(p));
 
   if (isUser) {
     return (

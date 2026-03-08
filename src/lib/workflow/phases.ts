@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import { isToolUIPart, getToolName } from "ai";
 import type {
   WorkflowPhase,
   WorkflowPhaseGroup,
@@ -19,29 +20,29 @@ const TOOL_PHASE_MAP: Record<string, { phase: WorkflowPhase; label: string }> = 
 };
 
 function deriveStatus(state: string): StepStatus {
-  if (state === "result") return "complete";
-  if (state === "error") return "error";
+  if (state === "output-available") return "complete";
+  if (state === "output-error") return "error";
   return "running";
 }
 
-function stepLabel(toolName: string, args?: Record<string, unknown>): string {
+function stepLabel(toolName: string, input?: Record<string, unknown>): string {
   switch (toolName) {
     case "discoverSkills":
-      return `Discovering skills${args?.query ? `: "${args.query}"` : ""}`;
+      return `Discovering skills${input?.query ? `: "${input.query}"` : ""}`;
     case "loadSkill":
-      return `Loading skill: ${args?.name ?? "unknown"}`;
+      return `Loading skill: ${input?.name ?? "unknown"}`;
     case "planAnalysis":
       return "Building analysis plan";
     case "queryDatabase":
-      return `Searching ${args?.table ?? "database"}${args?.query ? `: "${args.query}"` : ""}`;
+      return `Searching ${input?.table ?? "database"}${input?.query ? `: "${input.query}"` : ""}`;
     case "assessPaper":
-      return `Assessor ${(args?.assessor as string)?.toUpperCase() ?? "?"} → ${args?.paper_title ?? "paper"}`;
+      return `Assessor ${(input?.assessor as string)?.toUpperCase() ?? "?"} → ${input?.paper_title ?? "paper"}`;
     case "convergenceCheck":
-      return `Convergence: ${args?.paper_title ?? args?.paper_id ?? "paper"}`;
+      return `Convergence: ${input?.paper_title ?? input?.paper_id ?? "paper"}`;
     case "preprocessDataset":
-      return `Preprocessing ${args?.dataset_uid ?? "dataset"}`;
+      return `Preprocessing ${input?.dataset_uid ?? "dataset"}`;
     case "analyzeGeneExpression":
-      return `Analyzing expression: ${args?.perturbation ?? args?.dataset_uid ?? "data"}`;
+      return `Analyzing expression: ${input?.perturbation ?? input?.dataset_uid ?? "data"}`;
     default:
       return toolName;
   }
@@ -52,13 +53,15 @@ export interface BuildResult {
   textEntries: TextLogEntry[];
 }
 
+/** Check if a part is a tool part (type starts with "tool-" or is "dynamic-tool") */
+function isToolPart(part: UIMessage["parts"][number]): boolean {
+  return isToolUIPart(part);
+}
+
 export function buildWorkflowPhases(parts: UIMessage["parts"]): BuildResult {
   const textEntries: TextLogEntry[] = [];
-  // Ordered list of phase groups, preserving first-seen order
   const phaseOrder: WorkflowPhase[] = [];
   const phaseMap = new Map<WorkflowPhase, WorkflowPhaseGroup>();
-
-  // For assessment grouping by paper_id
   const assessmentGroups = new Map<string, WorkflowStep>();
 
   parts.forEach((part, index) => {
@@ -69,10 +72,15 @@ export function buildWorkflowPhases(parts: UIMessage["parts"]): BuildResult {
       return;
     }
 
-    if (part.type === "tool-invocation") {
+    if (isToolPart(part)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const toolInvocation = (part as any).toolInvocation as { toolCallId: string; toolName: string; args: Record<string, unknown>; state: string; result?: unknown };
-      const { toolName, args, state, toolCallId } = toolInvocation;
+      const p = part as any;
+      const toolName = getToolName(p);
+      const state: string = p.state;
+      const input = p.input as Record<string, unknown> | undefined;
+      const output = p.output;
+      const toolCallId: string = p.toolCallId;
+
       const mapping = TOOL_PHASE_MAP[toolName];
       if (!mapping) return;
 
@@ -80,40 +88,36 @@ export function buildWorkflowPhases(parts: UIMessage["parts"]): BuildResult {
       const step: WorkflowStep = {
         id: toolCallId,
         phase: mapping.phase,
-        label: stepLabel(toolName, args),
+        label: stepLabel(toolName, input),
         status,
         toolName,
-        args,
-        result: state === "result" ? toolInvocation.result : undefined,
+        args: input,
+        result: state === "output-available" ? output : undefined,
       };
 
       // Group assessPaper calls by paper_id
-      if (toolName === "assessPaper" && args?.paper_id) {
-        const paperId = args.paper_id as string;
-        const groupKey = paperId;
-        const existing = assessmentGroups.get(groupKey);
+      if (toolName === "assessPaper" && input?.paper_id) {
+        const paperId = input.paper_id as string;
+        const existing = assessmentGroups.get(paperId);
         if (existing) {
           if (!existing.children) existing.children = [];
           existing.children.push(step);
-          // Update parent status: running if any child running, else complete if all complete
           if (status === "running") existing.status = "running";
           else if (existing.children.every((c) => c.status === "complete") && existing.status !== "running") {
             existing.status = "complete";
           }
-          return; // Don't add as separate step
+          return;
         } else {
-          // First assessor for this paper — create parent step
           const parentStep: WorkflowStep = {
             id: `assess-${paperId}`,
             phase: "assessment",
-            label: `Assessing: ${args.paper_title ?? paperId}`,
+            label: `Assessing: ${input.paper_title ?? paperId}`,
             status,
             toolName: "assessPaper",
-            args: { paper_id: paperId, paper_title: args.paper_title },
+            args: { paper_id: paperId, paper_title: input.paper_title },
             children: [step],
           };
-          assessmentGroups.set(groupKey, parentStep);
-          // Add parent to phase group
+          assessmentGroups.set(paperId, parentStep);
           addStepToPhase(parentStep, mapping);
           return;
         }
@@ -137,13 +141,11 @@ export function buildWorkflowPhases(parts: UIMessage["parts"]): BuildResult {
       phaseOrder.push(mapping.phase);
     }
     group.steps.push(step);
-    // Update phase status
     if (step.status === "running") group.status = "running";
     else if (step.status === "error") group.status = "error";
     else if (group.steps.every((s) => s.status === "complete")) group.status = "complete";
   }
 
-  // Set defaultExpanded for running phases and last phase
   const phases = phaseOrder.map((p) => phaseMap.get(p)!);
   phases.forEach((group, i) => {
     group.defaultExpanded = group.status === "running" || i === phases.length - 1;

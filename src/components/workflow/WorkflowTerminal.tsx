@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { UIMessage } from "ai";
+import { isToolUIPart } from "ai";
 import { buildWorkflowPhases } from "@/lib/workflow/phases";
 import { WorkflowPhaseSection } from "./WorkflowPhaseSection";
 
@@ -126,10 +127,10 @@ export function WorkflowTerminal({ parts, isStreaming }: WorkflowTerminalProps) 
 
   // Interleave text entries before the first phase
   // For simplicity, show text entries at the top (before phases) and at the bottom (after phases)
-  const firstToolIndex = parts.findIndex((p) => p.type === "tool-invocation");
+  const firstToolIndex = parts.findIndex((p) => isToolUIPart(p));
   const lastToolIndex = (() => {
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i].type === "tool-invocation") return i;
+      if (isToolUIPart(parts[i])) return i;
     }
     return -1;
   })();
