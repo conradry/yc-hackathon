@@ -36,21 +36,22 @@ export function WorkflowTerminal({ parts, isStreaming }: WorkflowTerminalProps) 
   const [expandedPhases, setExpandedPhases] = useState(new Set<string>());
   const [expandedSteps, setExpandedSteps] = useState(new Set<string>());
 
+  // Stable key for phase identity: "phase1:status1,phase2:status2,..."
+  const phaseKey = phases.map((g) => `${g.phase}:${g.status}`).join(",");
+
   // Auto-expand running/last phases
   useEffect(() => {
-    const next = new Set<string>();
-    phases.forEach((g, i) => {
-      if (g.status === "running" || i === phases.length - 1) {
-        next.add(g.phase);
-      }
-    });
     setExpandedPhases((prev) => {
-      // Only add auto-expanded, don't remove user-collapsed
       const merged = new Set(prev);
-      next.forEach((p) => merged.add(p));
+      phases.forEach((g, i) => {
+        if (g.status === "running" || i === phases.length - 1) {
+          merged.add(g.phase);
+        }
+      });
       return merged;
     });
-  }, [phases]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phaseKey]);
 
   // Track step durations
   useEffect(() => {
@@ -73,7 +74,8 @@ export function WorkflowTerminal({ parts, isStreaming }: WorkflowTerminalProps) 
       }
     }
     if (changed) setDurations(newDurations);
-  }, [phases, durations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phaseKey]);
 
   // Elapsed timer while streaming
   useEffect(() => {
