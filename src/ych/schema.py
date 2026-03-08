@@ -78,6 +78,7 @@ class _CellMetadataMixin(LanceModel):
     cell_uid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     dataset_uid: str
     assay: str
+    cell_line: str | None
     additional_metadata: str | None
 
     # Spatio-temporal coordinates
