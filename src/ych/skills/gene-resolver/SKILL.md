@@ -1,6 +1,6 @@
 ---
 name: gene-resolver
-description: Validate and standardize gene identifiers in standardized_var.csv (Ensembl IDs, symbols, barnyard detection) and genetic perturbation targets in standardized_obs.csv (control detection, combinatorial splitting, is_control derivation, perturbation method). Use after geo-data-preparer has created the standardized CSVs.
+description: Validate and standardize gene identifiers in standardized_var.csv (Ensembl IDs, symbols, barnyard detection) and genetic perturbation targets in standardized_obs.csv (control detection, combinatorial splitting, is_control derivation, perturbation method).
 ---
 
 # Gene Resolver

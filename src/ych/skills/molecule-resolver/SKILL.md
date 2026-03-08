@@ -1,6 +1,6 @@
 ---
 name: molecule-resolver
-description: Resolve chemical compound names or SMILES to PubChem CIDs in standardized_obs.csv files. Handles name cleanup, fallback resolution, control label filtering, and is_control derivation for chemical perturbation datasets. Use after geo-data-preparer has created the standardized CSVs.
+description: Resolve chemical compound names or SMILES to PubChem CIDs in standardized_obs.csv files. Handles name cleanup, fallback resolution, control label filtering, and is_control derivation for chemical perturbation datasets.
 ---
 
 # Molecule Resolver
@@ -31,7 +31,7 @@ data_dir = Path("/tmp/geo_agent/<accession>")
 obs_csv_path = data_dir / f"{key}_standardized_obs.csv"
 standardized_obs = pd.read_csv(obs_csv_path, index_col=0)
 
-# Identify the precursor compound column (set by geo-data-preparer)
+# Identify the precursor compound column
 compound_col = "<compound_column>"  # e.g., "compound", "drug", "treatment"
 compound_names = standardized_obs[compound_col].dropna().unique().tolist() if compound_col in standardized_obs.columns else obs_df[compound_col].dropna().unique().tolist()
 print(f"Unique compounds: {len(compound_names)}")
