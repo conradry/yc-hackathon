@@ -1,3 +1,8 @@
+---
+name: dataset-preprocessing-workflow
+description: End-to-end preprocessing pipeline for perturbation biology single-cell datasets. Loads raw data, runs QC, normalizes, selects features, reduces dimensions, clusters, and performs differential expression. Outputs a fully processed AnnData object ready for downstream analysis.
+---
+
 # Dataset Preprocessing Workflow
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: paper-search-workflow
+description: Searches for perturbation biology papers and datasets across available data sources. Takes a structured query from query-understanding-workflow and returns a ranked candidate list with metadata.
+---
+
 # Paper Search Workflow
 
 ## Purpose

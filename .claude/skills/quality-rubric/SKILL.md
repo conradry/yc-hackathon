@@ -1,3 +1,8 @@
+---
+name: quality-rubric
+description: Standardized assessment criteria for evaluating perturbation biology papers and datasets. Every assessment agent applies this rubric independently to produce comparable, structured scores across data quality, experimental design, and reproducibility dimensions.
+---
+
 # Quality Rubric
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: concurrent-assessment-workflow
+description: Spawns N independent agents to assess candidate papers using the quality rubric. Produces a consensus ranking with divergence analysis. Use as the core evaluation mechanism for perturbation biology paper quality.
+---
+
 # Concurrent Assessment Workflow
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: agent-spawning-protocol
+description: Defines how Claude Code spawns, manages, and collects results from subagents in the perturbation biology pipeline. Use when orchestrating parallel or sequential agent execution across multi-agent workflows.
+---
+
 # Agent Spawning Protocol
 
 ## Purpose

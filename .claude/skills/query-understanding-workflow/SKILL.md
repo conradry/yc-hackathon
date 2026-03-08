@@ -1,3 +1,8 @@
+---
+name: query-understanding-workflow
+description: Parses a user's natural language perturbation biology question into a structured query object. This is the pipeline entry point — every user question flows through here first to extract perturbation type, genes, compounds, and constraints.
+---
+
 # Query Understanding Workflow
 
 ## Purpose

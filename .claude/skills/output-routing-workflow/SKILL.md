@@ -1,3 +1,8 @@
+---
+name: output-routing-workflow
+description: Routes final pipeline output to the appropriate destination after preprocessing and validation. Handles multiple endpoints depending on user needs (files, reports, database writes).
+---
+
 # Output Routing Workflow
 
 ## Purpose

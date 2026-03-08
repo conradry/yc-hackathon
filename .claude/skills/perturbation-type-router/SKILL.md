@@ -1,3 +1,8 @@
+---
+name: perturbation-type-router
+description: Routes assessed papers and datasets to the appropriate analysis branch based on perturbation type (chemical, genetic, etc.). Each perturbation type has different preprocessing parameters, analysis methods, and interpretation frameworks.
+---
+
 # Perturbation Type Router
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: result-schema-validator
+description: Validates that a processed AnnData object has all required fields, layers, and metadata for downstream analysis. Acts as a quality gate after the dataset-preprocessing-workflow.
+---
+
 # Result Schema Validator
 
 ## Purpose
