@@ -1,4 +1,6 @@
 import dataclasses
+import json
+from pathlib import Path
 
 import anndata as ad
 import duckdb
@@ -99,7 +101,7 @@ def build_search_query(
         tokens.append(f"METHOD:{query.perturbation_method}")
 
     if query.chemical_perturbation_uid:
-        tokens.append(f"SM:{query.chemical_perturbation_uid}")
+        tokens.append(f"SM:{query.chemical_perturbation_uid.replace('-', '')}")
 
     if not tokens:
         return None
@@ -494,3 +496,269 @@ def create_anndatas_from_query(
             per_dataset.setdefault(assay, {}).setdefault(dataset_uid, {})[feature_space] = adata
 
     return per_dataset
+
+
+# ---------------------------------------------------------------------------
+# Convenience API: raw SQL / FTS queries for agents
+# ---------------------------------------------------------------------------
+
+DB_URI = "s3://ychackathon-cell-data/yclance/"
+
+
+def query_cells(
+    db: lancedb.DBConnection,
+    table_name: str = "gene_expression",
+    *,
+    where: str | None = None,
+    fts_query: str | None = None,
+    fts_column: str = "perturbation_search_string",
+    fts_operator: str = "OR",
+    limit: int | None = None,
+    select_cols: list[str] | None = None,
+) -> pa.Table:
+    """Query a data table using raw SQL WHERE and/or full-text search.
+
+    This is the preferred entry point for agents. Instead of constructing an
+    ``AtlasQuery`` dataclass, pass SQL strings directly.
+
+    Parameters
+    ----------
+    db
+        LanceDB connection (use ``lancedb.connect(DB_URI)``).
+    table_name
+        Table to query. Usually ``"gene_expression"`` or ``"image_feature_vectors"``.
+    where
+        SQL WHERE clause, e.g. ``"dataset_uid = 'abc' AND is_control = true"``.
+    fts_query
+        Full-text search string for the ``fts_column``.
+        Tokens are combined with ``fts_operator``.
+        Example: ``"GENE_ID:42 METHOD:CRISPR-cas9"``
+    fts_column
+        Column with the FTS index. Default ``"perturbation_search_string"``.
+    fts_operator
+        ``"OR"`` (any token matches) or ``"AND"`` (all tokens must match).
+    limit
+        Max rows to return. **Always set this** for statistical tests that
+        don't need the full dataset — queries without a limit can return
+        millions of rows.
+    select_cols
+        Columns to return. ``None`` returns all columns.
+
+    Returns
+    -------
+    pa.Table
+        PyArrow table of matching rows.
+    """
+    table = db.open_table(table_name)
+
+    if fts_query is not None:
+        operator = FullTextOperator[fts_operator]
+        match = MatchQuery(fts_query, column=fts_column, operator=operator)
+        lance_q = table.search(match)
+    else:
+        lance_q = table.search()
+
+    if where is not None:
+        lance_q = lance_q.where(where)
+
+    if select_cols is not None:
+        lance_q = lance_q.select(select_cols)
+
+    if limit is not None:
+        lance_q = lance_q.limit(limit)
+
+    return lance_q.to_arrow()
+
+
+def cells_to_anndata(
+    db: lancedb.DBConnection,
+    cells_arrow: pa.Table,
+    feature_space: str = "gene_expression",
+) -> dict[str, ad.AnnData]:
+    """Reconstruct AnnData objects from a PyArrow table of cell records.
+
+    Groups cells by ``dataset_uid`` and rebuilds the sparse expression matrix
+    (or dense image feature matrix) for each dataset.
+
+    Parameters
+    ----------
+    db
+        LanceDB connection (needed for gene/feature lookups and dataset metadata).
+    cells_arrow
+        Arrow table returned by :func:`query_cells`.
+    feature_space
+        ``"gene_expression"`` or ``"image_features"``.
+
+    Returns
+    -------
+    dict[str, AnnData]
+        Mapping from ``dataset_uid`` to reconstructed AnnData.
+    """
+    if cells_arrow.num_rows == 0:
+        return {}
+
+    lookups = _FeatureLookups.from_db(db)
+    cells_pl = pl.from_arrow(cells_arrow)
+
+    # Load measured_feature_indices for each dataset
+    dataset_uids = cells_pl["dataset_uid"].unique().to_list()
+    uid_list = ", ".join(f"'{uid}'" for uid in dataset_uids)
+    datasets_df = (
+        db.open_table("datasets")
+        .search()
+        .where(f"dataset_uid IN ({uid_list}) AND feature_space = '{feature_space}'")
+        .select(["dataset_uid", "measured_feature_indices"])
+        .to_polars()
+    )
+    dataset_measured: dict[str, bytes] = dict(
+        zip(
+            datasets_df["dataset_uid"].to_list(),
+            datasets_df["measured_feature_indices"].to_list(),
+            strict=False,
+        )
+    )
+
+    reconstruct = _FEATURE_SPACE_RECONSTRUCTORS[feature_space]
+    result: dict[str, ad.AnnData] = {}
+
+    for (dataset_uid,), group_df in cells_pl.group_by(["dataset_uid"]):
+        if dataset_uid not in dataset_measured:
+            continue
+        measured_indices = np.frombuffer(dataset_measured[dataset_uid], dtype=np.int32)
+        extra_kwargs = lookups.reconstructor_kwargs(feature_space, measured_indices)
+        X, var, obsm = reconstruct(group_df, measured_indices, **extra_kwargs)
+        obs = _build_obs(group_df, lookups.gene_names_arr)
+
+        adata = ad.AnnData(obs=obs, var=var, obsm=obsm)
+        if X is not None:
+            adata.X = X
+        result[dataset_uid] = adata
+
+    return result
+
+
+def fetch_dataset_context(
+    db: lancedb.DBConnection,
+    dataset_uids: list[str],
+) -> list[dict]:
+    """Fetch dataset metadata and associated publication text.
+
+    For each dataset, retrieves the dataset record from the ``datasets`` table,
+    then fetches all publication sections from ``publications`` using the ``pmid``.
+
+    Returns a list of context dicts suitable for passing to an LLM agent or
+    saving to JSON via :func:`save_query_results`.
+    """
+    uid_list = ", ".join(f"'{uid}'" for uid in dataset_uids)
+    datasets_df = (
+        db.open_table("datasets")
+        .search()
+        .where(f"dataset_uid IN ({uid_list})")
+        .select([
+            "dataset_uid", "pmid", "doi", "cell_count", "feature_space",
+            "accession_database", "accession_id", "dataset_description",
+        ])
+        .to_polars()
+    )
+
+    # Group dataset rows by dataset_uid (may have multiple feature spaces)
+    grouped: dict[str, list[dict]] = {}
+    for row in datasets_df.iter_rows(named=True):
+        grouped.setdefault(row["dataset_uid"], []).append(row)
+
+    # Fetch publications by pmid (deduplicated)
+    all_pmids = {
+        row["pmid"]
+        for rows in grouped.values()
+        for row in rows
+        if row.get("pmid")
+    }
+    pub_cache: dict[str, dict] = {}
+    if all_pmids and "publications" in db.list_tables().tables:
+        pmid_list = ", ".join(f"'{p}'" for p in all_pmids)
+        pubs_df = (
+            db.open_table("publications")
+            .search()
+            .where(f"pmid IN ({pmid_list})")
+            .to_polars()
+        )
+        for pmid in all_pmids:
+            pmid_rows = pubs_df.filter(pl.col("pmid") == pmid)
+            if pmid_rows.height == 0:
+                continue
+            first = pmid_rows.row(0, named=True)
+            sections = [
+                {"title": r["section_title"], "text": r["section_text"]}
+                for r in pmid_rows.iter_rows(named=True)
+            ]
+            pub_cache[pmid] = {
+                "title": first["title"],
+                "journal": first["journal"],
+                "publication_date": str(first["publication_date"]),
+                "sections": sections,
+            }
+
+    # Build context list
+    results: list[dict] = []
+    for dataset_uid in dataset_uids:
+        rows = grouped.get(dataset_uid, [])
+        if not rows:
+            continue
+        first = rows[0]
+        pmid = first.get("pmid")
+        results.append({
+            "dataset_uid": dataset_uid,
+            "pmid": pmid,
+            "doi": first.get("doi"),
+            "cell_count": first.get("cell_count"),
+            "feature_spaces": [r["feature_space"] for r in rows],
+            "accession_database": first.get("accession_database"),
+            "accession_id": first.get("accession_id"),
+            "dataset_description": first.get("dataset_description"),
+            "publication": pub_cache.get(pmid) if pmid else None,
+        })
+    return results
+
+
+def save_query_results(
+    output_dir: str,
+    anndatas: dict[str, ad.AnnData],
+    context: list[dict] | None = None,
+) -> dict:
+    """Save AnnData objects as .h5ad files and context as JSON.
+
+    Parameters
+    ----------
+    output_dir
+        Directory to write output files. Created if it does not exist.
+    anndatas
+        Mapping from ``dataset_uid`` to AnnData (from :func:`cells_to_anndata`).
+    context
+        List of context dicts (from :func:`fetch_dataset_context`).
+
+    Returns
+    -------
+    dict
+        Manifest with paths to all saved files.
+    """
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    h5ad_files: dict[str, str] = {}
+    for dataset_uid, adata in anndatas.items():
+        path = out / f"{dataset_uid}.h5ad"
+        adata.write_h5ad(path)
+        h5ad_files[dataset_uid] = str(path)
+
+    context_file = None
+    if context is not None:
+        context_path = out / "context.json"
+        with open(context_path, "w") as f:
+            json.dump(context, f, indent=2, default=str)
+        context_file = str(context_path)
+
+    return {
+        "output_dir": str(out),
+        "h5ad_files": h5ad_files,
+        "context_file": context_file,
+    }

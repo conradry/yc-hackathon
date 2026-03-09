@@ -1,3 +1,10 @@
+---
+name: concurrent-assessment-workflow
+description: Spawns parallel assessment agents to independently evaluate perturbation biology papers using the quality rubric, then computes consensus rankings with divergence analysis. Use when a user says "assess these papers", "rank these candidates", "evaluate paper quality", or after paper-search-workflow returns candidates.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Concurrent Assessment Workflow
 
 ## Purpose

@@ -1,3 +1,10 @@
+---
+name: result-schema-validator
+description: Validates processed AnnData objects have all required fields, layers, embeddings, and DE results for downstream analysis. Use when a user says "validate this h5ad", "check if preprocessing is complete", or automatically after dataset-preprocessing-workflow finishes.
+metadata:
+    skill-author: K-Dense Inc.
+---
+
 # Result Schema Validator
 
 ## Purpose
