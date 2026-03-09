@@ -14,6 +14,25 @@ Query the project's LanceDB database containing curated perturbation biology pub
 - Retrieving cell-level expression data for a specific dataset or perturbation condition
 - Loading data + publication context for downstream analysis by agents
 
+## CRITICAL: Be Conservative with Cell Counts
+
+Many datasets contain **hundreds of thousands to millions of cells**. Loading too
+many cells will exhaust memory and crash the process. Follow these rules:
+
+1. **Start small** — use `limit=5000` for exploratory queries. Only increase if
+   you specifically need more cells for analysis (e.g., differential expression).
+2. **Never load full datasets** — datasets can have 96M+ cells (Tahoe-100M),
+   1.99M cells (Replogle), or 762K cells (sci-Plex). Always sample.
+3. **Recommended limits by use case**:
+   - Exploration / browsing: `limit=1000–5000`
+   - Downstream analysis (DE, clustering): `limit=10000–50000`
+   - FTS discovery (finding which datasets match): `limit=100_000` (returns
+     metadata rows, not full expression — this is fine)
+   - **Never use `limit` > 50,000 for `cells_to_anndata`** unless the user
+     explicitly requests it and you've confirmed available memory
+4. **Check dataset size first** — query the `datasets` table for `cell_count`
+   before loading cells. If a dataset has >100K cells, sample conservatively.
+
 ## Connection
 
 ```python
@@ -262,10 +281,30 @@ molecule `sample_uid`s, not compound names or CIDs directly.
 ### 4. Use `limit` to Control Result Size
 
 **Always set `limit`** — queries without a limit can return millions of rows.
+**Be conservative** — many datasets have 100K–96M cells. Loading too many will
+exhaust memory. See the "Be Conservative with Cell Counts" section above.
 
 **IMPORTANT for FTS queries:** LanceDB FTS returns results ranked by relevance
 score and may not return all matches if the limit is too low. Set `limit` to
-at least `100_000` for FTS queries to ensure all datasets are covered.
+at least `100_000` for FTS queries to ensure all datasets are covered. This is
+safe because FTS returns lightweight metadata rows before you call `cells_to_anndata`.
+
+**IMPORTANT for `cells_to_anndata`:** This reconstructs full sparse matrices in
+memory. Keep the input to ≤50,000 cells unless the user explicitly needs more.
+If your FTS query returned 100K rows, subsample before converting:
+
+```python
+# FTS with high limit is fine for discovery
+cells = query_cells(db, "gene_expression",
+    fts_query=f"GENE_ID:{idx}",
+    limit=100_000)
+
+# But subsample before building AnnData
+import polars as pl
+cells_pl = pl.from_arrow(cells).drop("_score")
+sampled = cells_pl.sample(n=min(10_000, len(cells_pl)), seed=42)
+anndatas = cells_to_anndata(db, sampled, feature_space="gene_expression")
+```
 
 ```python
 # Molecule FTS — strip hyphens from UID to match indexed tokens
@@ -274,7 +313,7 @@ treated = query_cells(db, "gene_expression",
     fts_operator="OR",
     limit=100_000)
 
-# For targeted queries where you know the dataset, smaller limits are fine
+# For targeted queries where you know the dataset, use conservative limits
 controls = query_cells(db, "gene_expression",
     where="dataset_uid = 'abc' AND is_control = true",
     limit=5000)
@@ -283,7 +322,7 @@ controls = query_cells(db, "gene_expression",
 ### 5. Reconstruct AnnData from Query Results
 
 ```python
-# Query cells
+# Query cells — keep limit conservative for AnnData reconstruction
 cells = query_cells(db, "gene_expression",
     where="dataset_uid = 'abc-123'",
     limit=10000)
