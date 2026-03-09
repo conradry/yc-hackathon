@@ -58,6 +58,9 @@ export const queryDatabaseTool = tool({
     limit: z.number().optional().default(10).describe("Max results to return"),
   }),
   execute: async ({ table, operation, query, filters, limit }) => {
+    const startTime = Date.now();
+    console.log(`[Tool:queryDatabase] table="${table}" op=${operation} started`);
+
     try {
       const result = await queryLanceDB({
         table,
@@ -66,9 +69,20 @@ export const queryDatabaseTool = tool({
         filters: filters as Record<string, unknown> | undefined,
         limit,
       });
-      return result;
+
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      if (result.error) {
+        console.error(`[Tool:queryDatabase] table="${table}" → error in ${elapsed}s: ${result.error}`);
+        return { success: false, ...result };
+      }
+
+      console.log(`[Tool:queryDatabase] table="${table}" → ${result.total} rows in ${elapsed}s`);
+      return { success: true, ...result };
     } catch (err) {
-      return { error: `Database query failed on table "${table}"`, details: String(err) };
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.error(`[Tool:queryDatabase] table="${table}" → exception in ${elapsed}s: ${err}`);
+      return { success: false, error: `Database query failed on table "${table}"`, details: String(err), results: [], total: 0 };
     }
   },
 });
@@ -232,6 +246,9 @@ export const analyzeGeneExpressionTool = tool({
     limit: z.number().optional().default(50).describe("Max cells to return (capped at 100)"),
   }),
   execute: async ({ perturbation, filters, limit }) => {
+    const startTime = Date.now();
+    console.log(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" started`);
+
     try {
       const queryFilters: Record<string, unknown> = {
         ...filters,
@@ -245,14 +262,83 @@ export const analyzeGeneExpressionTool = tool({
         limit: Math.min(limit, 100),
       });
 
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      if (result.error) {
+        console.error(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" → error in ${elapsed}s: ${result.error}`);
+        return {
+          success: false,
+          perturbation,
+          filters: queryFilters,
+          error: result.error,
+          results: [],
+          total: 0,
+        };
+      }
+
+      console.log(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" → ${result.total} rows in ${elapsed}s`);
       return {
+        success: true,
         perturbation,
         filters: queryFilters,
         ...result,
       };
     } catch (err) {
-      return { error: `Gene expression query failed for "${perturbation}"`, details: String(err) };
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.error(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" → exception in ${elapsed}s: ${err}`);
+      return { success: false, error: `Gene expression query failed for "${perturbation}"`, details: String(err), results: [], total: 0 };
     }
+  },
+});
+
+export const routeOutputTool = tool({
+  description:
+    "Present output options to the user after preprocessing completes. Shows download, API endpoint, and continue-analysis modes in a single interactive UI.",
+  inputSchema: z.object({
+    dataset_name: z.string().describe("Human-readable dataset name"),
+    dataset_uid: z.string().describe("Dataset unique identifier"),
+    summary: z.object({
+      cells: z.number().describe("Number of cells"),
+      genes: z.number().describe("Number of genes"),
+      perturbations: z.array(z.string()).describe("List of perturbation names"),
+      steps: z.array(z.string()).describe("Preprocessing steps applied"),
+    }),
+    download: z.object({
+      data_path: z.string().describe("Path to processed data file"),
+      data_format: z.string().describe("File format (e.g. h5ad, csv)"),
+      data_size_mb: z.number().describe("File size in MB"),
+      skill_path: z.string().describe("Path to generated SKILL.md file"),
+    }),
+    api_endpoint: z.object({
+      function_name: z.string().describe("API function name"),
+      description: z.string().describe("What the endpoint does"),
+      arguments: z.array(
+        z.object({
+          name: z.string(),
+          type: z.string(),
+          default: z.string().optional(),
+          description: z.string(),
+        })
+      ),
+      example_response: z.string().describe("Example JSON response"),
+    }),
+    analyses: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        description: z.string(),
+        requirements_met: z.boolean(),
+        requirements_note: z.string().optional(),
+        prompt: z.string().describe("Chat prompt to trigger this analysis"),
+      })
+    ),
+  }),
+  execute: async (input) => {
+    return {
+      ...input,
+      status: "ready" as const,
+      presented_at: new Date().toISOString(),
+    };
   },
 });
 
@@ -266,4 +352,5 @@ export const allTools = {
   convergenceCheck: convergenceCheckTool,
   preprocessDataset: preprocessDatasetTool,
   analyzeGeneExpression: analyzeGeneExpressionTool,
+  routeOutput: routeOutputTool,
 };

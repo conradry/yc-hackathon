@@ -7,6 +7,7 @@ import { ConvergencePanel } from "@/components/agent/ConvergencePanel";
 import { PaperCard } from "@/components/agent/PaperCard";
 import { GeneList } from "@/components/results/GeneList";
 import { DatasetTable } from "@/components/results/DatasetTable";
+import { OutputModeSelector } from "@/components/output/OutputModeSelector";
 
 interface WorkflowStepLineProps {
   step: WorkflowStep;
@@ -33,8 +34,21 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function ErrorDetail({ error }: { error: string }) {
+  return (
+    <div className="px-2 py-1.5 text-xs text-[var(--color-destructive)] bg-[var(--color-destructive)]/5 rounded-sm">
+      <span className="font-semibold">Error:</span> {error}
+    </div>
+  );
+}
+
 function RichDetail({ step }: { step: WorkflowStep }) {
   const { toolName, args, result } = step;
+
+  // Show error detail for failed-but-returned tool calls
+  if (step.status === "error" && result?.error) {
+    return <ErrorDetail error={String(result.error)} />;
+  }
 
   if (step.status !== "complete" || !result) return null;
 
@@ -80,6 +94,9 @@ function RichDetail({ step }: { step: WorkflowStep }) {
     case "analyzeGeneExpression":
       return <GeneList data={result} />;
 
+    case "routeOutput":
+      return <OutputModeSelector result={result} />;
+
     default:
       return null;
   }
@@ -93,7 +110,7 @@ export function WorkflowStepLine({
   onToggle,
   indent = 0,
 }: WorkflowStepLineProps) {
-  const hasDetail = expandable && step.status === "complete" && step.result;
+  const hasDetail = expandable && (step.status === "complete" || step.status === "error") && step.result;
   const paddingLeft = indent * 16;
 
   return (

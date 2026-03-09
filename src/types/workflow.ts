@@ -5,7 +5,8 @@ export type WorkflowPhase =
   | "assessment"
   | "convergence"
   | "preprocessing"
-  | "analysis";
+  | "analysis"
+  | "output";
 
 export type StepStatus = "running" | "complete" | "error";
 

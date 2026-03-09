@@ -32,6 +32,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When given a bug report: just fix it — point at logs/errors, then resolve them
 - Zero context switching required from the user
 
+### Git Commits
+- Never use `Co-Authored-By: Claude` in commit messages — do not co-author commits
+- Keep commit messages clean and human-authored
+
 ## Task Management
 
 1. **Plan**: Write plan to `tasks/todo.md` with checkable items

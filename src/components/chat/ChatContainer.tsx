@@ -4,7 +4,8 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ChatInput } from "./ChatInput";
 import { ChatMessage } from "./ChatMessage";
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { ChatActionsProvider } from "@/lib/chat-context";
 
 export function ChatContainer() {
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
@@ -18,6 +19,14 @@ export function ChatContainer() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isStreaming = status === "streaming" || status === "submitted";
 
+  const handleSendMessage = useCallback(
+    (text: string) => {
+      setInput("");
+      sendMessage({ text });
+    },
+    [sendMessage]
+  );
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -25,55 +34,51 @@ export function ChatContainer() {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <header className="flex-none px-6 py-4 border-b-3 border-black bg-white">
-        <h1 className="font-[var(--font-heading)] text-xl font-black tracking-tight">
-          Perturbation Data Analysis
-        </h1>
-        <p className="text-sm text-[var(--color-muted)] mt-1">
-          Multi-agent scientific literature and dataset analysis
-        </p>
-      </header>
+    <ChatActionsProvider value={{ sendMessage: handleSendMessage }}>
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <header className="flex-none px-6 py-4 border-b-3 border-black bg-white">
+          <h1 className="font-[var(--font-heading)] text-xl font-black tracking-tight">
+            Perturbation Data Analysis
+          </h1>
+          <p className="text-sm text-[var(--color-muted)] mt-1">
+            Multi-agent scientific literature and dataset analysis
+          </p>
+        </header>
 
-      {/* Error Banner */}
-      {error && (
-        <div className="flex-none px-6 py-3 bg-red-50 border-b-2 border-red-300 text-red-800 text-sm">
-          <span className="font-bold">Error:</span>{" "}
-          {error.message || "Something went wrong. Please try again."}
+        {/* Error Banner */}
+        {error && (
+          <div className="flex-none px-6 py-3 bg-red-50 border-b-2 border-red-300 text-red-800 text-sm">
+            <span className="font-bold">Error:</span>{" "}
+            {error.message || "Something went wrong. Please try again."}
+          </div>
+        )}
+
+        {/* Messages */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-4"
+        >
+          {messages.length === 0 && <WelcomeScreen onSuggestion={handleSendMessage} />}
+          {messages.map((message, index) => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              isStreaming={isStreaming && index === messages.length - 1}
+            />
+          ))}
         </div>
-      )}
 
-      {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-4"
-      >
-        {messages.length === 0 && <WelcomeScreen onSuggestion={(text) => {
-          setInput("");
-          sendMessage({ text });
-        }} />}
-        {messages.map((message, index) => (
-          <ChatMessage
-            key={message.id}
-            message={message}
-            isStreaming={isStreaming && index === messages.length - 1}
-          />
-        ))}
+        {/* Input */}
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          onSubmit={handleSendMessage}
+          isStreaming={isStreaming}
+          onStop={stop}
+        />
       </div>
-
-      {/* Input */}
-      <ChatInput
-        input={input}
-        setInput={setInput}
-        onSubmit={(text) => {
-          setInput("");
-          sendMessage({ text });
-        }}
-        isStreaming={isStreaming}
-        onStop={stop}
-      />
-    </div>
+    </ChatActionsProvider>
   );
 }
 

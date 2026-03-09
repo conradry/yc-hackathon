@@ -1,5 +1,17 @@
 import * as lancedb from "@lancedb/lancedb";
 
+const QUERY_TIMEOUT_MS = Number(process.env.LANCEDB_QUERY_TIMEOUT_MS) || 30_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Query timed out after ${ms}ms: ${label}`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 type QueryParams = {
   table: string;
   operation: string;
@@ -53,14 +65,24 @@ async function getTable(name: string): Promise<lancedb.Table> {
   return table;
 }
 
+// Columns whose Arrow type is List(Utf8) — need array_has_element() instead of =
+const LIST_COLUMNS = new Set([
+  "perturbation_search_string",
+  "genetic_perturbation_method",
+  "chemical_perturbation_uid",
+]);
+
 function buildWhereClause(filters: Record<string, unknown>): string {
   const clauses: string[] = [];
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
     if (typeof value === "string") {
-      // Escape single quotes in string values
       const escaped = value.replace(/'/g, "''");
-      clauses.push(`${key} = '${escaped}'`);
+      if (LIST_COLUMNS.has(key)) {
+        clauses.push(`array_has_element(${key}, '${escaped}')`);
+      } else {
+        clauses.push(`${key} = '${escaped}'`);
+      }
     } else if (typeof value === "number") {
       clauses.push(`${key} = ${value}`);
     } else if (typeof value === "boolean") {
@@ -100,6 +122,10 @@ export async function queryLanceDB(params: QueryParams) {
     }
   }
 
+  const startTime = Date.now();
+  const filterDesc = filters ? buildWhereClause(filters) : "";
+  console.log(`[LanceDB] START table=${tableName} op=${operation} filter="${filterDesc}"`);
+
   try {
     const table = await getTable(tableName);
     const effectiveLimit = tableName === "gene_expression" ? Math.min(limit, 100) : limit;
@@ -109,8 +135,15 @@ export async function queryLanceDB(params: QueryParams) {
     if (operation === "fts" && query) {
       try {
         // Try native FTS first
-        rows = await table.search(query).limit(effectiveLimit).toArray();
-      } catch {
+        rows = await withTimeout(
+          table.search(query).limit(effectiveLimit).toArray(),
+          QUERY_TIMEOUT_MS,
+          `FTS on ${tableName}`,
+        );
+      } catch (ftsErr) {
+        // If it was a timeout, propagate immediately
+        if (ftsErr instanceof Error && ftsErr.message.startsWith("Query timed out")) throw ftsErr;
+
         // Fall back to SQL LIKE
         const likeQuery = `%${query.replace(/'/g, "''")}%`;
         let q = table.query();
@@ -134,26 +167,43 @@ export async function queryLanceDB(params: QueryParams) {
           if (whereClause) q = q.where(whereClause);
         }
 
-        rows = await q.limit(effectiveLimit).toArray();
+        rows = await withTimeout(
+          q.limit(effectiveLimit).toArray(),
+          QUERY_TIMEOUT_MS,
+          `LIKE fallback on ${tableName}`,
+        );
       }
     } else if (operation === "filter" && filters) {
       const whereClause = buildWhereClause(filters);
       if (!whereClause) {
         return { results: [], total: 0, error: "No valid filters provided" };
       }
-      rows = await table.query().where(whereClause).limit(effectiveLimit).toArray();
+      rows = await withTimeout(
+        table.query().where(whereClause).limit(effectiveLimit).toArray(),
+        QUERY_TIMEOUT_MS,
+        `filter on ${tableName}: ${whereClause}`,
+      );
     } else {
       // Simple scan (for small tables like genes)
-      rows = await table.query().limit(effectiveLimit).toArray();
+      rows = await withTimeout(
+        table.query().limit(effectiveLimit).toArray(),
+        QUERY_TIMEOUT_MS,
+        `scan on ${tableName}`,
+      );
     }
 
     const results = rows.map(cleanRow);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[LanceDB] table=${tableName} filter="${filterDesc}" → ${results.length} rows in ${elapsed}s`);
     return { results, total: results.length };
   } catch (err) {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[LanceDB] FAILED table=${tableName} filter="${filterDesc}" → ${errMsg} in ${elapsed}s`);
     return {
       results: [],
       total: 0,
-      error: `LanceDB query failed on table "${tableName}": ${err instanceof Error ? err.message : String(err)}`,
+      error: `LanceDB query failed on table "${tableName}": ${errMsg}`,
     };
   }
 }

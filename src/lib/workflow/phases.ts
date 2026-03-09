@@ -17,10 +17,17 @@ const TOOL_PHASE_MAP: Record<string, { phase: WorkflowPhase; label: string }> = 
   convergenceCheck: { phase: "convergence", label: "Convergence Check" },
   preprocessDataset: { phase: "preprocessing", label: "Preprocessing" },
   analyzeGeneExpression: { phase: "analysis", label: "Gene Expression Analysis" },
+  routeOutput: { phase: "output", label: "Output Options" },
 };
 
-function deriveStatus(state: string): StepStatus {
-  if (state === "output-available") return "complete";
+function deriveStatus(state: string, output?: unknown): StepStatus {
+  if (state === "output-available") {
+    // Detect error-in-success: tool returned 200-like but with an error field
+    if (output && typeof output === "object" && "error" in output && (output as Record<string, unknown>).error) {
+      return "error";
+    }
+    return "complete";
+  }
   if (state === "output-error") return "error";
   return "running";
 }
@@ -43,6 +50,8 @@ function stepLabel(toolName: string, input?: Record<string, unknown>): string {
       return `Preprocessing ${input?.dataset_uid ?? "dataset"}`;
     case "analyzeGeneExpression":
       return `Analyzing expression: ${input?.perturbation ?? input?.dataset_uid ?? "data"}`;
+    case "routeOutput":
+      return `Output options for ${input?.dataset_name ?? "dataset"}`;
     default:
       return toolName;
   }
@@ -84,7 +93,7 @@ export function buildWorkflowPhases(parts: UIMessage["parts"]): BuildResult {
       const mapping = TOOL_PHASE_MAP[toolName];
       if (!mapping) return;
 
-      const status = deriveStatus(state);
+      const status = deriveStatus(state, output);
       const step: WorkflowStep = {
         id: toolCallId,
         phase: mapping.phase,

@@ -105,6 +105,13 @@ If the user asks about gene expression or DE analysis:
 - Call \`preprocessDataset\` on top-ranked dataset
 - Call \`analyzeGeneExpression\` for perturbation-matched cell data
 
+### Step 6b: Present Output Options
+After preprocessing, call \`routeOutput\` to present download, API endpoint, and continue analysis options.
+Populate all three modes with contextual data from the pipeline results:
+- download: paths to the processed data file and generated SKILL.md
+- api_endpoint: a function spec with arguments, types, and example response for programmatic access
+- analyses: a list of follow-up analyses the user can run (DE analysis, pathway enrichment, visualization, etc.) with their requirements status
+
 ### Step 7: Summarize
 Clear summary with: top papers ranked by consensus, confidence levels, caveats, specific answers.
 
