@@ -39,7 +39,7 @@ export function WorkflowTerminal({ parts, isStreaming }: WorkflowTerminalProps) 
   // Stable key for phase identity: "phase1:status1,phase2:status2,..."
   const phaseKey = phases.map((g) => `${g.phase}:${g.status}`).join(",");
 
-  // Auto-expand running/last phases
+  // Auto-expand running/last phases + routeOutput steps
   useEffect(() => {
     setExpandedPhases((prev) => {
       const merged = new Set(prev);
@@ -47,6 +47,17 @@ export function WorkflowTerminal({ parts, isStreaming }: WorkflowTerminalProps) 
         if (g.status === "running" || i === phases.length - 1) {
           merged.add(g.phase);
         }
+      });
+      return merged;
+    });
+    setExpandedSteps((prev) => {
+      const merged = new Set(prev);
+      phases.forEach((g) => {
+        g.steps.forEach((s) => {
+          if (s.toolName === "routeOutput" && s.status === "complete") {
+            merged.add(s.id);
+          }
+        });
       });
       return merged;
     });

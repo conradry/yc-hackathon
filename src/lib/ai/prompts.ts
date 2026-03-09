@@ -104,6 +104,8 @@ Call \`convergenceCheck\` for each paper to compute inter-assessor agreement.
 If the user asks about gene expression or DE analysis:
 - Call \`preprocessDataset\` on top-ranked dataset
 - Call \`analyzeGeneExpression\` for perturbation-matched cell data
+- IMPORTANT: Search for ONE gene at a time. For combinatorial queries (e.g. KLF1+MAP2K6), call analyzeGeneExpression separately for each gene, always including dataset_uid to scope the query.
+- Always include dataset_uid filter when you know it from earlier search results.
 
 ### Step 6b: Present Output Options
 After preprocessing, call \`routeOutput\` to present download, API endpoint, and continue analysis options.

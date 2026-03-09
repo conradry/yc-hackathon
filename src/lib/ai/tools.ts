@@ -236,13 +236,13 @@ export const preprocessDatasetTool = tool({
 
 export const analyzeGeneExpressionTool = tool({
   description:
-    "Query the gene_expression table for cells matching a perturbation. Returns real cell-level data from the S3-backed LanceDB. Requires at least one filter. Results capped at 100 rows.",
+    "Query the gene_expression table for cells matching a perturbation. Returns real cell-level data from the S3-backed LanceDB. Requires at least one filter. Results capped at 100 rows. IMPORTANT: Search for ONE gene at a time (e.g. 'KLF1', not 'KLF1+MAP2K6'). For combinatorial perturbations, call this tool once per gene and cross-reference by dataset_uid. Always include dataset_uid when known.",
   inputSchema: z.object({
-    perturbation: z.string().describe("Perturbation to search for (e.g. 'vorinostat', 'TP53')"),
+    perturbation: z.string().describe("Single perturbation to search for (e.g. 'vorinostat', 'TP53'). Do NOT combine multiple genes — search one at a time."),
     filters: z
       .record(z.string(), z.unknown())
       .optional()
-      .describe("Additional filters: dataset_uid, assay, is_control, genetic_perturbation_method, etc."),
+      .describe("Additional filters: dataset_uid, assay, is_control, genetic_perturbation_method, etc. Always include dataset_uid when known."),
     limit: z.number().optional().default(50).describe("Max cells to return (capped at 100)"),
   }),
   execute: async ({ perturbation, filters, limit }) => {
@@ -250,9 +250,15 @@ export const analyzeGeneExpressionTool = tool({
     console.log(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" started`);
 
     try {
+      // Split combined perturbations (KLF1+MAP2K6, TP53_BRCA1) into first gene only
+      const singlePerturbation = perturbation.split(/[+|_,;]/).map(s => s.trim()).filter(Boolean)[0] || perturbation;
+      if (singlePerturbation !== perturbation) {
+        console.log(`[Tool:analyzeGeneExpression] Split "${perturbation}" → using "${singlePerturbation}"`);
+      }
+
       const queryFilters: Record<string, unknown> = {
         ...filters,
-        perturbation_search_string: perturbation,
+        perturbation_search_string: singlePerturbation,
       };
 
       const result = await queryLanceDB({
@@ -265,10 +271,11 @@ export const analyzeGeneExpressionTool = tool({
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
       if (result.error) {
-        console.error(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" → error in ${elapsed}s: ${result.error}`);
+        console.error(`[Tool:analyzeGeneExpression] perturbation="${singlePerturbation}" → error in ${elapsed}s: ${result.error}`);
         return {
           success: false,
-          perturbation,
+          perturbation: singlePerturbation,
+          original_query: perturbation !== singlePerturbation ? perturbation : undefined,
           filters: queryFilters,
           error: result.error,
           results: [],
@@ -276,10 +283,11 @@ export const analyzeGeneExpressionTool = tool({
         };
       }
 
-      console.log(`[Tool:analyzeGeneExpression] perturbation="${perturbation}" → ${result.total} rows in ${elapsed}s`);
+      console.log(`[Tool:analyzeGeneExpression] perturbation="${singlePerturbation}" → ${result.total} rows in ${elapsed}s`);
       return {
         success: true,
-        perturbation,
+        perturbation: singlePerturbation,
+        original_query: perturbation !== singlePerturbation ? perturbation : undefined,
         filters: queryFilters,
         ...result,
       };

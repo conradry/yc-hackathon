@@ -1,6 +1,6 @@
 import * as lancedb from "@lancedb/lancedb";
 
-const QUERY_TIMEOUT_MS = Number(process.env.LANCEDB_QUERY_TIMEOUT_MS) || 30_000;
+const QUERY_TIMEOUT_MS = Number(process.env.LANCEDB_QUERY_TIMEOUT_MS) || 60_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -76,6 +76,11 @@ const LIST_COLUMNS = new Set([
   "genetic_perturbation_additional_metadata",
 ]);
 
+// Columns that should use LIKE instead of = for substring matching on large tables
+const LIKE_COLUMNS = new Set([
+  "perturbation_search_string",
+]);
+
 function buildWhereClause(filters: Record<string, unknown>): string {
   const clauses: string[] = [];
   for (const [key, value] of Object.entries(filters)) {
@@ -88,6 +93,10 @@ function buildWhereClause(filters: Record<string, unknown>): string {
       } else if (typeof value === "number") {
         clauses.push(`array_to_string(${key}, '||') LIKE '%${value}%'`);
       }
+    } else if (LIKE_COLUMNS.has(key) && typeof value === "string") {
+      // Use LIKE for substring matching on large string columns
+      const escaped = value.replace(/'/g, "''");
+      clauses.push(`${key} LIKE '%${escaped}%'`);
     } else if (typeof value === "string") {
       const escaped = value.replace(/'/g, "''");
       clauses.push(`${key} = '${escaped}'`);
