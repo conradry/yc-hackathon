@@ -65,24 +65,32 @@ async function getTable(name: string): Promise<lancedb.Table> {
   return table;
 }
 
-// Columns whose Arrow type is List(Utf8) — need array_has_element() instead of =
+// Columns whose Arrow type is List — cannot use scalar = comparison.
+// Use array_to_string() + LIKE as a workaround since array_contains()
+// doesn't support LargeUtf8 in this Lance/DataFusion version.
 const LIST_COLUMNS = new Set([
-  "perturbation_search_string",
   "genetic_perturbation_method",
   "chemical_perturbation_uid",
+  "genetic_perturbation_gene_index",
+  "chemical_perturbation_additional_metadata",
+  "genetic_perturbation_additional_metadata",
 ]);
 
 function buildWhereClause(filters: Record<string, unknown>): string {
   const clauses: string[] = [];
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
-    if (typeof value === "string") {
-      const escaped = value.replace(/'/g, "''");
-      if (LIST_COLUMNS.has(key)) {
-        clauses.push(`array_has_element(${key}, '${escaped}')`);
-      } else {
-        clauses.push(`${key} = '${escaped}'`);
+    if (LIST_COLUMNS.has(key)) {
+      // List columns: flatten to string and use LIKE to check membership
+      if (typeof value === "string") {
+        const escaped = value.replace(/'/g, "''");
+        clauses.push(`array_to_string(${key}, '||') LIKE '%${escaped}%'`);
+      } else if (typeof value === "number") {
+        clauses.push(`array_to_string(${key}, '||') LIKE '%${value}%'`);
       }
+    } else if (typeof value === "string") {
+      const escaped = value.replace(/'/g, "''");
+      clauses.push(`${key} = '${escaped}'`);
     } else if (typeof value === "number") {
       clauses.push(`${key} = ${value}`);
     } else if (typeof value === "boolean") {

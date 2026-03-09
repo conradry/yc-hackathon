@@ -175,18 +175,18 @@ const SKILL_REGISTRY: SkillEntry[] = [
     tags: ["database", "query", "lancedb", "search"],
     path: ".claude/skills/lancedb-query/SKILL.md",
   },
-  // Resolvers (in src/ych/skills/)
+  // Resolvers
   {
     name: "gene-resolver",
-    description: "Gene name resolution: HGNC symbols, Ensembl IDs, aliases, orthologs",
-    tags: ["data", "gene", "resolution", "hgnc"],
-    path: "src/ych/skills/gene-resolver/SKILL.md",
+    description: "Validate and standardize gene identifiers in standardized_var.csv (Ensembl IDs, symbols, barnyard detection) and genetic perturbation targets in standardized_obs.csv (control detection, combinatorial splitting, is_control derivation, perturbation method).",
+    tags: ["data", "gene", "resolution", "hgnc", "ensembl", "perturbation"],
+    path: ".claude/skills/gene-resolver/SKILL.md",
   },
   {
     name: "molecule-resolver",
-    description: "Molecule resolution: PubChem CID, SMILES, IUPAC names, InChI",
-    tags: ["data", "molecule", "resolution", "pubchem"],
-    path: "src/ych/skills/molecule-resolver/SKILL.md",
+    description: "Resolve chemical compound names or SMILES to PubChem CIDs in standardized_obs.csv files. Handles name cleanup, fallback resolution, control label filtering, and is_control derivation for chemical perturbation datasets.",
+    tags: ["data", "molecule", "resolution", "pubchem", "chemical", "compound"],
+    path: ".claude/skills/molecule-resolver/SKILL.md",
   },
 ];
 
