@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perturbation Atlas — YC Hackathon Infrastructure Track Winner</title>
+  <meta name="description" content="The infrastructure layer for AI-driven biological discovery. YC Hackathon Infrastructure Track Winner." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #0d6efd;
+      --accent: #ff6b35;
+      --bg: #fafbfc;
+      --fg: #1a1a2e;
+      --muted: #94a3b8;
+      --secondary: #f0f4f8;
+      --border: #000;
+      --font-heading: "Archivo Black", sans-serif;
+      --font-body: "Space Grotesk", sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Neo-brutalism utils ── */
+    .neo-border { border: 3px solid var(--border); }
+    .neo-shadow { box-shadow: 4px 4px 0 var(--border); }
+    .neo-shadow-sm { box-shadow: 2px 2px 0 var(--border); }
+
+    /* ── Header / Hero ── */
+    header {
+      background: #0d1117;
+      color: #fff;
+      border-bottom: 3px solid var(--border);
+      padding: 48px 0 40px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border: 2px solid #fff;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-family: var(--font-heading);
+      font-size: clamp(2rem, 6vw, 3.25rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    header h1 span {
+      color: var(--primary);
+    }
+
+    .tagline {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.6);
+      font-weight: 400;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Demo section ── */
+    .demo-section {
+      padding: 56px 0 48px;
+      text-align: center;
+    }
+
+    .demo-label {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .demo-frame {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 */
+      background: #0d1117;
+      border: 3px solid var(--border);
+      box-shadow: 6px 6px 0 var(--border);
+      overflow: hidden;
+    }
+
+    .demo-frame iframe,
+    .demo-frame video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .demo-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.3);
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+    }
+
+    .demo-placeholder .play {
+      width: 56px;
+      height: 56px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .demo-placeholder .play svg {
+      width: 20px;
+      height: 20px;
+      fill: rgba(255,255,255,0.3);
+      margin-left: 3px;
+    }
+
+    /* ── Content sections ── */
+    .content {
+      padding: 0 0 80px;
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-tag {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .section h2 {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      margin-bottom: 12px;
+    }
+
+    .section p {
+      color: #374151;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    /* ── Problem bullets ── */
+    .problem-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .problem-list li {
+      display: flex;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: #374151;
+      line-height: 1.5;
+    }
+
+    .problem-list li .bullet {
+      flex-shrink: 0;
+      margin-top: 2px;
+      width: 18px;
+      height: 18px;
+      background: var(--fg);
+      color: #fff;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: ui-monospace, monospace;
+      font-weight: 700;
+    }
+
+    .problem-list strong {
+      color: var(--fg);
+    }
+
+    /* ── Feature cards ── */
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 4px;
+    }
+
+    .feature-card {
+      padding: 20px;
+      background: #fff;
+      border: 3px solid var(--border);
+      box-shadow: 3px 3px 0 var(--border);
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feature-card h3 .num {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .feature-card p {
+      font-size: 0.875rem;
+      color: #4b5563;
+      line-height: 1.6;
+    }
+
+    .code-snippet {
+      margin-top: 10px;
+      background: #0d1117;
+      color: #e2e8f0;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    /* ── Stats bar ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 3px solid var(--border);
+      box-shadow: 4px 4px 0 var(--border);
+      background: #fff;
+      margin-bottom: 40px;
+    }
+
+    .stat {
+      padding: 20px 16px;
+      text-align: center;
+      border-right: 3px solid var(--border);
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat .num {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      display: block;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat .label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 3px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--secondary);
+      border-top: 3px solid var(--border);
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    footer p {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .stat:nth-child(2) { border-right: none; }
+      .stat:nth-child(1),
+      .stat:nth-child(2) { border-bottom: 3px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header>
+    <div class="container">
+      <div class="badge">✦ YC Hackathon — Infrastructure Track Winner</div>
+      <h1>Public bio data,<br /><span>ready for agents.</span></h1>
+      <p class="tagline">The infrastructure layer that was missing for AI-driven biological discovery.</p>
+    </div>
+  </header>
+
+  <!-- Demo -->
+  <div class="demo-section">
+    <div class="container">
+      <p class="demo-label">// demo</p>
+      <div class="demo-frame">
+        <!-- Replace this placeholder with your video embed -->
+        <!-- Option A — YouTube: <iframe src="https://www.youtube.com/embed/VIDEO_ID" allowfullscreen></iframe> -->
+        <!-- Option B — local video: <video src="demo.mp4" controls autoplay muted loop></video> -->
+        <div class="demo-placeholder">
+          <div class="play">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <span>demo coming soon</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="container">
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat">
+          <span class="num">121M</span>
+          <span class="label">cells indexed</span>
+        </div>
+        <div class="stat">
+          <span class="num">45</span>
+          <span class="label">datasets</span>
+        </div>
+        <div class="stat">
+          <span class="num">126k</span>
+          <span class="label">perturbations</span>
+        </div>
+        <div class="stat">
+          <span class="num">15</span>
+          <span class="label">papers vetted</span>
+        </div>
+      </div>
+
+      <!-- Situation -->
+      <div class="section">
+        <p class="section-tag">// situation</p>
+        <h2>The data exists. It just isn't usable.</h2>
+        <p>Thousands of single-cell datasets, CRISPR screens, and perturbation studies are openly available — describing how cells respond to genetic knockouts and chemical compounds at unprecedented scale. The science is there. The access isn't.</p>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Complication -->
+      <div class="section">
+        <p class="section-tag">// complication</p>
+        <h2>It was never built for AI agents.</h2>
+        <ul class="problem-list">
+          <li><span class="bullet">1</span><span><strong>Fragmented</strong> — papers reference datasets loosely. Tracing a publication to its raw files requires expert knowledge most agents don't have.</span></li>
+          <li><span class="bullet">2</span><span><strong>Siloed</strong> — most datasets capture one layer (RNA, protein, or chromatin). Cross-omic connections are rarely established.</span></li>
+          <li><span class="bullet">3</span><span><strong>Unreconciled</strong> — overlapping experiments across labs aren't merged. Harmonizing them takes months of manual work.</span></li>
+          <li><span class="bullet">4</span><span><strong>Expert-gated</strong> — finding the right dataset requires knowing the right labs, databases, and search terms.</span></li>
+          <li><span class="bullet">5</span><span><strong>Error-compounding</strong> — long agent reasoning chains amplify bad data sourcing. Errors at step 1 degrade everything downstream.</span></li>
+        </ul>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Why now -->
+      <div class="section">
+        <p class="section-tag">// why now</p>
+        <h2>Models are ready. The data infrastructure isn't.</h2>
+        <p>AI models are getting dramatically more capable in biology — but intelligence alone isn't enough. The next wave of biological discovery needs data that is structured, vetted, and packaged for reasoning. Agents can now do the reconciliation labor that blocked this before — in minutes, not months.</p>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Solution -->
+      <div class="section">
+        <p class="section-tag">// solution</p>
+        <h2>Source, vet, preprocess, consume. In one workflow.</h2>
+        <p>We built the infrastructure layer for making public biological data useful to agents. New database paradigms, embedding-rich context, and structured links between publications and the datasets they describe.</p>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Features -->
+      <div class="section">
+        <p class="section-tag">// how it works</p>
+        <h2>Key capabilities.</h2>
+        <div class="features">
+
+          <div class="feature-card">
+            <h3><span class="num">01 —</span> Data sourcing &amp; derisking</h3>
+            <p>Every paper is evaluated by 3 independent AI assessors in parallel — statistical rigor, biological relevance, data quality. A convergence check flags disagreement. Red flags reduce scores automatically. You know what you're building on before you build on it.</p>
+          </div>
+
+          <div class="feature-card">
+            <h3><span class="num">02 —</span> Callable data endpoints</h3>
+            <p>After preprocessing, the system registers a live REST endpoint for the dataset — queryable by agents or scientists directly.</p>
+            <div class="code-snippet">GET /api/datasets/query_vorinostat_cells?limit=50&amp;is_negative_control=false</div>
+          </div>
+
+          <div class="feature-card">
+            <h3><span class="num">03 —</span> Agent skills layer</h3>
+            <p>21 composable skills loaded on demand — scanpy, scvi-tools, DESeq2, RNA velocity, UMAP, gene resolution, molecule lookup, and more. Some custom-built; others extend the life sciences knowledge embedded in Claude. The agent reasons with domain depth, not general knowledge.</p>
+          </div>
+
+          <div class="feature-card">
+            <h3><span class="num">04 —</span> Full preprocessing pipeline</h3>
+            <p>QC → normalization → log transform → highly variable genes → PCA → UMAP → clustering → differential expression. Analysis-ready <code>.h5ad</code> matrices, clean metadata, delivered.</p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>Built at the YC Hackathon &nbsp;·&nbsp; <a href="https://github.com/kamilseghrouchni/yc-hackathon">GitHub</a></p>
+    </div>
+  </footer>
+
+</body>
+</html>
