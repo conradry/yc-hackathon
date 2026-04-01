@@ -2,7 +2,7 @@
 
 **YC Hackathon — Infrastructure Track Winner**
 
-![YC Hackathon Infrastructure Track Winner](./assets/yc-winner.png)
+![YC Hackathon Infrastructure Track Winner](./assets/README.jpg)
 
 **The infrastructure layer for AI-driven biological discovery.**
 
